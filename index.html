@@ -90,7 +90,7 @@ canvas {
   <div class="target">
     請點選 <span id="targetCoord">(0, 0)</span>
   </div>
-  <canvas id="canvas" width="450" height="450"></canvas>
+  <canvas id="canvas" width="420" height="420"></canvas>
   <div class="msg" id="msg"></div>
   <div class="streak" id="streak"></div>
   <button class="btn hidden" id="nextBtn">下一題</button>
@@ -98,10 +98,10 @@ canvas {
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const SIZE = 450;
+const SIZE = 420;
 const CENTER = SIZE / 2;
-const GRID = 15;
-const STEP = SIZE / GRID;
+const GRID = 14;
+const STEP = 30;
 const RANGE = 7;
 
 let targetX = 0, targetY = 0;
