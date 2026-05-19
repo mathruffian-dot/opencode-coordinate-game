@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>直角座標點選遊戲</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', 'Noto Sans TC', sans-serif;
+  background: #1a1a2e;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+.container {
+  background: #16213e;
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  text-align: center;
+}
+h1 {
+  font-size: 24px;
+  margin-bottom: 5px;
+  color: #e94560;
+}
+.subtitle {
+  font-size: 14px;
+  color: #aaa;
+  margin-bottom: 15px;
+}
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+.score-row span { color: #0f3460; background: #e94560; padding: 4px 14px; border-radius: 8px; font-weight: bold; color: #fff; }
+.target {
+  font-size: 28px;
+  font-weight: bold;
+  color: #f5c518;
+  margin-bottom: 10px;
+}
+.target small { font-size: 14px; color: #aaa; font-weight: normal; }
+canvas {
+  display: block;
+  margin: 0 auto;
+  border-radius: 12px;
+  cursor: crosshair;
+  touch-action: none;
+}
+.msg {
+  margin-top: 12px;
+  font-size: 18px;
+  min-height: 30px;
+  font-weight: bold;
+}
+.msg.correct { color: #2ecc71; }
+.msg.wrong { color: #e74c3c; }
+.btn {
+  margin-top: 10px;
+  padding: 10px 28px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  background: #e94560;
+  color: #fff;
+  cursor: pointer;
+  font-weight: bold;
+  transition: .2s;
+}
+.btn:hover { background: #c73650; transform: scale(1.03); }
+.btn.hidden { display: none; }
+.streak { font-size: 14px; color: #f5c518; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🎯 直角座標點選遊戲</h1>
+  <p class="subtitle">學生能準確辨識直角座標平面上的座標點</p>
+  <div class="score-row">
+    <span>✓ <span id="correctCount">0</span></span>
+    <span>✗ <span id="wrongCount">0</span></span>
+  </div>
+  <div class="target">
+    請點選 <span id="targetCoord">(0, 0)</span>
+  </div>
+  <canvas id="canvas" width="450" height="450"></canvas>
+  <div class="msg" id="msg"></div>
+  <div class="streak" id="streak"></div>
+  <button class="btn hidden" id="nextBtn">下一題</button>
+</div>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const SIZE = 450;
+const CENTER = SIZE / 2;
+const GRID = 15;
+const STEP = SIZE / GRID;
+const RANGE = 7;
+
+let targetX = 0, targetY = 0;
+let correct = 0, wrong = 0;
+let streak = 0, bestStreak = 0;
+let answered = false;
+
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function newTarget() {
+  targetX = randInt(-RANGE, RANGE);
+  targetY = randInt(-RANGE, RANGE);
+  document.getElementById('targetCoord').textContent = `(${targetX}, ${targetY})`;
+  answered = false;
+  document.getElementById('nextBtn').classList.add('hidden');
+  document.getElementById('msg').textContent = '';
+  document.getElementById('msg').className = 'msg';
+  draw();
+}
+
+function gridToPixel(gx, gy) {
+  return { x: CENTER + gx * STEP, y: CENTER - gy * STEP };
+}
+
+function pixelToGrid(px, py) {
+  const gx = Math.round((px - CENTER) / STEP);
+  const gy = Math.round((CENTER - py) / STEP);
+  return { gx, gy };
+}
+
+function draw() {
+  ctx.clearRect(0, 0, SIZE, SIZE);
+  ctx.fillStyle = '#f8f9fa';
+  ctx.fillRect(0, 0, SIZE, SIZE);
+
+  ctx.strokeStyle = '#d0d0d0';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= GRID; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * STEP, 0); ctx.lineTo(i * STEP, SIZE);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, i * STEP); ctx.lineTo(SIZE, i * STEP);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(CENTER, 0); ctx.lineTo(CENTER, SIZE);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, CENTER); ctx.lineTo(SIZE, CENTER);
+  ctx.stroke();
+
+  ctx.fillStyle = '#333';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let i = -RANGE; i <= RANGE; i++) {
+    if (i === 0) continue;
+    const p = gridToPixel(i, 0);
+    ctx.fillText(i, p.x, CENTER + 4);
+    const p2 = gridToPixel(0, i);
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(i, CENTER - 4, p2.y);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+  }
+
+  if (answered) {
+    const tp = gridToPixel(targetX, targetY);
+    ctx.beginPath();
+    ctx.arc(tp.x, tp.y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#2ecc71';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#2ecc71';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`(${targetX},${targetY})`, tp.x + 12, tp.y - 4);
+  }
+}
+
+function dist(x1, y1, x2, y2) {
+  return Math.sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+}
+
+function handleClick(e) {
+  if (answered) return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  let clientX, clientY;
+  if (e.touches) {
+    clientX = e.touches[0].clientX;
+    clientY = e.touches[0].clientY;
+    e.preventDefault();
+  } else {
+    clientX = e.clientX;
+    clientY = e.clientY;
+  }
+  const px = (clientX - rect.left) * scaleX;
+  const py = (clientY - rect.top) * scaleY;
+  const { gx, gy } = pixelToGrid(px, py);
+  if (gx < -RANGE || gx > RANGE || gy < -RANGE || gy > RANGE) return;
+
+  const d = dist(gx, gy, targetX, targetY);
+  const msg = document.getElementById('msg');
+  answered = true;
+
+  if (d === 0) {
+    correct++;
+    streak++;
+    if (streak > bestStreak) bestStreak = streak;
+    msg.textContent = `✅ 正確！(${targetX}, ${targetY}) 答對了！`;
+    msg.className = 'msg correct';
+  } else {
+    wrong++;
+    streak = 0;
+    const cp = gridToPixel(gx, gy);
+    ctx.beginPath();
+    ctx.arc(cp.x, cp.y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#e74c3c';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    msg.textContent = `❌ 你點的是 (${gx}, ${gy})，正確答案是 (${targetX}, ${targetY})`;
+    msg.className = 'msg wrong';
+  }
+
+  document.getElementById('correctCount').textContent = correct;
+  document.getElementById('wrongCount').textContent = wrong;
+  document.getElementById('streak').textContent = streak >= 3 ? `🔥 ${streak} 連勝！最佳 ${bestStreak}` : '';
+  draw();
+  document.getElementById('nextBtn').classList.remove('hidden');
+}
+
+canvas.addEventListener('click', handleClick);
+canvas.addEventListener('touchstart', handleClick);
+
+document.getElementById('nextBtn').addEventListener('click', newTarget);
+
+newTarget();
+</script>
+</body>
+</html>
